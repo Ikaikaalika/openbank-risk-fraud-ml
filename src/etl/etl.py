@@ -5,6 +5,10 @@ from pathlib import Path
 import pandas as pd
 
 from src.common.io import ensure_dir
+try:
+    from great_expectations.dataset import PandasDataset  # lightweight usage
+except Exception:  # pragma: no cover
+    PandasDataset = None
 
 
 def etl_lendingclub(raw_paths: list[Path], out_root: Path) -> list[Path]:
@@ -14,10 +18,16 @@ def etl_lendingclub(raw_paths: list[Path], out_root: Path) -> list[Path]:
         df = pd.read_csv(p, parse_dates=["issue_d"])  # basic parse
         df["year"] = df["issue_d"].dt.year
         df["month"] = df["issue_d"].dt.month
+        # Data quality checks (Great Expectations - minimal)
+        if PandasDataset is not None:
+            ds = PandasDataset(df)
+            res = ds.expect_column_values_to_not_be_null("loan_amnt")
+            res2 = ds.expect_column_values_to_be_between("int_rate", min_value=0, max_value=100)
+            if not (res.success and res2.success):
+                raise ValueError("Data validation failed for LendingClub ETL")
         part_dir = out_root / f"year={df['year'].iloc[0]}" / f"month={df['month'].iloc[0]:02d}"
         ensure_dir(part_dir)
         out_file = part_dir / "lendingclub.parquet"
         df.to_parquet(out_file, index=False)
         outputs.append(out_file)
     return outputs
-

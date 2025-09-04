@@ -6,6 +6,7 @@ from typing import Optional
 import joblib
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
+from src.mlflow_utils import set_local_tracking, find_latest_artifact
 
 MODELS_DIR = Path("models")
 
@@ -37,9 +38,21 @@ class FraudOutput(BaseModel):
 
 
 def load_model(name: str) -> Optional[object]:
-    path = MODELS_DIR / name
-    if path.exists():
-        return joblib.load(path)
+    # 1) Load from local models dir
+    local = MODELS_DIR / name
+    if local.exists():
+        return joblib.load(local)
+    # 2) Try MLflow latest artifact (local mlruns)
+    try:
+        set_local_tracking()
+        mlflow_path = find_latest_artifact(
+            model_name="credit_risk" if name.startswith("credit") else "fraud",
+            filename=name,
+        )
+        if mlflow_path and mlflow_path.exists():
+            return joblib.load(mlflow_path)
+    except Exception:
+        pass
     return None
 
 
@@ -68,4 +81,3 @@ def score_fraud(inp: FraudInput):
         fraud_prob = float(model.predict_proba(X)[0, 1])
     action = "review" if fraud_prob >= 0.5 else "allow"
     return FraudOutput(fraud_prob=fraud_prob, action=action, explanations=["amount"])
-

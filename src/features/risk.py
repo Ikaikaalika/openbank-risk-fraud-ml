@@ -19,10 +19,10 @@ def build_risk_features(parquet_paths: list[Path], out_dir: Path) -> Path:
         "dti_clipped",
         "term",
         "defaulted",
+        "state",
         "year",
         "month",
     ]].copy()
     out_path = out_dir / "risk_features.parquet"
     features.to_parquet(out_path, index=False)
     return out_path
-
