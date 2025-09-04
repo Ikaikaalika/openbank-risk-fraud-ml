@@ -1,0 +1,5 @@
+window_days: 7
+alert:
+  enabled: true
+  method: "stdout"
+

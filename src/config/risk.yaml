@@ -1,0 +1,14 @@
+dataset: "lendingclub"
+target: "defaulted"
+split:
+  method: "time"
+  train_end: "2018-12-31"
+  valid_end: "2019-06-30"
+model:
+  type: "xgboost"
+  params:
+    max_depth: 4
+    n_estimators: 200
+    learning_rate: 0.1
+calibration: "isotonic"
+

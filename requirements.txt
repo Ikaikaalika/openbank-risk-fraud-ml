@@ -1,0 +1,22 @@
+
+pandas
+numpy
+scikit-learn
+xgboost
+lightgbm
+pyyaml
+typer
+pydantic
+mlflow
+joblib
+tqdm
+fastapi
+uvicorn
+streamlit
+evidently
+fairlearn
+prometheus-client
+# pyspark (install as needed)
+# dask[complete]
+pyarrow
+pytest

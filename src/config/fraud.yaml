@@ -1,0 +1,11 @@
+dataset: "kaggle_cc"
+target: "is_fraud"
+model:
+  type: "xgboost"
+  params:
+    max_depth: 4
+    n_estimators: 300
+    learning_rate: 0.1
+threshold:
+  review_rate: 0.02
+
