@@ -1,16 +1,21 @@
 
+from __future__ import annotations
+
 import typer
-from pyspark.sql import SparkSession
+
+from src.etl.spark_etl import main as spark_etl_main
 
 app = typer.Typer()
 
+
 @app.command()
-def main(input: str = "data/raw/lendingclub.csv", out: str = "data/interim/lendingclub_spark"):
-    spark = SparkSession.builder.appName("ETL").getOrCreate()
-    df = spark.read.option("header", True).csv(input, inferSchema=True)
-    df.write.mode("overwrite").parquet(out)
-    spark.stop()
-    print(f"Saved to {out}")
+def main(
+    input: str = typer.Option("data/raw/lendingclub/*.csv", help="Input CSV glob or path"),
+    out: str = typer.Option("data/interim/lendingclub", help="Output root directory"),
+):
+    spark_etl_main.callback = None
+    spark_etl_main(input=input, out=out)
+
 
 if __name__ == "__main__":
     app()

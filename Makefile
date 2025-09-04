@@ -20,6 +20,9 @@ download:
 etl:
 	$(PY) -m src.jobs.run_etl --source lendingclub
 
+etl-spark:
+	$(PY) -m src.jobs.run_etl_spark --input "data/raw/lendingclub/*.csv" --out data/interim/lendingclub
+
 features:
 	$(PY) -m src.jobs.build_features --domain credit
 	$(PY) -m src.jobs.build_features --domain fraud
@@ -29,6 +32,12 @@ train-risk:
 
 train-fraud:
 	$(PY) -m src.jobs.train --domain fraud
+
+train-risk-cal:
+	$(PY) -m src.jobs.train --domain credit --calibrate true
+
+train-fraud-cal:
+	$(PY) -m src.jobs.train --domain fraud --calibrate true
 
 evaluate:
 	$(PY) -m src.jobs.evaluate --domain credit
@@ -43,4 +52,3 @@ docker-api:
 monitor:
 	$(PY) -m src.jobs.run_monitoring --domain credit
 	$(PY) -m src.jobs.run_monitoring --domain fraud
-
