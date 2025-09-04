@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import joblib
+import json
 from pathlib import Path
 from sklearn.metrics import roc_curve, auc, precision_recall_curve, average_precision_score
 import matplotlib.pyplot as plt
@@ -20,6 +21,27 @@ with tab_overview:
 
 with tab_credit:
     st.subheader('Credit Risk — Predictions & ROC')
+    eval_dir = Path('reports/evaluation/credit')
+    metrics_path = eval_dir / 'metrics.json'
+    roc_img = eval_dir / 'roc.png'
+    rel_img = eval_dir / 'reliability.png'
+    if metrics_path.exists() or roc_img.exists() or rel_img.exists():
+        cols = st.columns(2)
+        with cols[0]:
+            if roc_img.exists():
+                st.image(str(roc_img), caption='ROC Curve')
+        with cols[1]:
+            if rel_img.exists():
+                st.image(str(rel_img), caption='Reliability (Calibration)')
+        if metrics_path.exists():
+            try:
+                metrics = json.loads(metrics_path.read_text())
+                st.markdown('Metrics')
+                st.json(metrics)
+            except Exception:
+                st.info('Metrics file present but unreadable.')
+        st.divider()
+        st.caption('Below is a live preview computed from current features and model (if available).')
     feat_path = Path('data/features/credit/risk_features.parquet')
     model_path = MODELS_DIR / 'credit_risk_xgb.joblib'
     if feat_path.exists() and model_path.exists():
@@ -41,6 +63,20 @@ with tab_credit:
 
 with tab_fraud:
     st.subheader('Fraud — PR Curve')
+    eval_dir = Path('reports/evaluation/fraud')
+    metrics_path = eval_dir / 'metrics.json'
+    pr_img = eval_dir / 'pr.png'
+    if pr_img.exists():
+        st.image(str(pr_img), caption='Precision-Recall Curve')
+    if metrics_path.exists():
+        try:
+            metrics = json.loads(metrics_path.read_text())
+            st.markdown('Metrics')
+            st.json(metrics)
+        except Exception:
+            st.info('Metrics file present but unreadable.')
+    st.divider()
+    st.caption('Below is a live preview computed from current features and model (if available).')
     feat_path = Path('data/features/fraud/fraud_features.parquet')
     model_path = MODELS_DIR / 'fraud_xgb.joblib'
     if feat_path.exists() and model_path.exists():
