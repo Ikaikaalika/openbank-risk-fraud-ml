@@ -1,0 +1,9 @@
+{
+  "suite_name": "kaggle_cc_clean",
+  "expectations": [
+    {"expectation_type": "expect_column_values_to_not_be_null", "kwargs": {"column": "issue_d"}},
+    {"expectation_type": "expect_column_values_to_be_between", "kwargs": {"column": "amount", "min_value": 0}},
+    {"expectation_type": "expect_column_values_to_be_in_set", "kwargs": {"column": "is_fraud", "value_set": [0,1]}}
+  ]
+}
+

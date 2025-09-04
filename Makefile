@@ -17,11 +17,17 @@ test:
 download:
 	$(PY) -m src.jobs.download_all --sources lendingclub kaggle_cc --sample
 
+download-noaa-holidays:
+	$(PY) -m src.jobs.download_all --sources lendingclub --noaa-station GHCND:USW00023174 --noaa-start 2018-01-01 --noaa-end 2018-01-31 --holidays-country US --holidays-years 2018,2019
+
 etl:
 	$(PY) -m src.jobs.run_etl --source lendingclub
 
 etl-spark:
 	$(PY) -m src.jobs.run_etl_spark --input "data/raw/lendingclub/*.csv" --out data/interim/lendingclub
+
+etl-dask:
+	$(PY) -m src.jobs.run_etl_dask --source lendingclub --input "data/raw/lendingclub/*.csv" --out data/interim/lendingclub
 
 features:
 	$(PY) -m src.jobs.build_features --domain credit
@@ -52,3 +58,7 @@ docker-api:
 monitor:
 	$(PY) -m src.jobs.run_monitoring --domain credit
 	$(PY) -m src.jobs.run_monitoring --domain fraud
+
+validate:
+	$(PY) -m src.jobs.validate_data --suite lendingclub_clean --data-glob "data/interim/lendingclub/**/*.parquet"
+	$(PY) -m src.jobs.validate_data --suite kaggle_cc_clean --data-glob "data/interim/kaggle_cc/**/*.parquet"

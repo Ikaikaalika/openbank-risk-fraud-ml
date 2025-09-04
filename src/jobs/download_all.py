@@ -24,6 +24,11 @@ def main(
     ieee_files: Optional[str] = typer.Option(None, help="Comma-separated paths to IEEE-CIS CSVs"),
     fannie_files: Optional[str] = typer.Option(None, help="Comma-separated paths to Fannie Mae files"),
     freddie_files: Optional[str] = typer.Option(None, help="Comma-separated paths to Freddie Mac files"),
+    noaa_station: Optional[str] = typer.Option(None, help="NOAA station id (e.g., GHCND:USW00023174)"),
+    noaa_start: Optional[str] = typer.Option(None, help="Start date YYYY-MM-DD"),
+    noaa_end: Optional[str] = typer.Option(None, help="End date YYYY-MM-DD"),
+    holidays_country: Optional[str] = typer.Option(None, help="ISO-3166 country code for holidays (e.g., US)"),
+    holidays_years: Optional[str] = typer.Option(None, help="Comma-separated years for holidays (e.g., 2018,2019)"),
 ):
     root = Path(data_root)
     if "lendingclub" in sources:
@@ -47,6 +52,19 @@ def main(
     if "freddie" in sources and freddie_files:
         paths = [Path(p.strip()) for p in freddie_files.split(",")]
         ff_organize(paths, root / "freddie")
+    # Enrichment
+    if noaa_station and noaa_start and noaa_end:
+        from datetime import date
+        from src.ingestion.noaa import fetch_noaa_daily
+        s = date.fromisoformat(noaa_start)
+        e = date.fromisoformat(noaa_end)
+        out_dir = root / "noaa" / f"{s.year:04d}{s.month:02d}"
+        fetch_noaa_daily(noaa_station, s, e, out_dir)
+    if holidays_country and holidays_years:
+        from src.ingestion.holidays_gen import generate_holidays
+        years = [int(y.strip()) for y in holidays_years.split(',')]
+        out_dir = root / "holidays"
+        generate_holidays(holidays_country, years, out_dir)
     typer.echo("Downloads/organization complete.")
 
 

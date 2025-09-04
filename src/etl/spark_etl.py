@@ -40,16 +40,28 @@ def parse_lendingclub_columns(df: DataFrame) -> DataFrame:
 def main(
     input: str = typer.Option("data/raw/lendingclub/*.csv", help="Input CSV glob or path"),
     out: str = typer.Option("data/interim/lendingclub", help="Output root directory"),
+    source: str = typer.Option("lendingclub", help="Source: lendingclub|kaggle_cc"),
 ):
-    spark = SparkSession.builder.appName("ETL_LendingClub").getOrCreate()
+    spark = SparkSession.builder.appName("Spark_ETL").getOrCreate()
     try:
         df = spark.read.option("header", True).csv(input, inferSchema=True)
-        df = parse_lendingclub_columns(df).dropna(subset=["issue_d"])  # type: ignore[arg-type]
-        (
-            df.write.mode("overwrite")
-            .partitionBy("year", "month")
-            .parquet(out)
-        )
+        if source == 'lendingclub':
+            df = parse_lendingclub_columns(df)
+        elif source == 'kaggle_cc':
+            # Kaggle CC: Time, Amount, Class
+            from pyspark.sql import functions as F
+            base = F.to_timestamp(F.lit('2018-01-01'))
+            df = df.withColumn('Time', F.col('Time').cast('double'))
+            df = df.withColumn('issue_d', base + F.expr('interval 1 seconds') * F.col('Time'))
+            df = df.withColumn('amount', F.col('Amount').cast('double'))
+            df = df.withColumn('is_fraud', F.col('Class').cast('int'))
+            df = df.select('issue_d','amount','is_fraud')
+            df = df.withColumn('year', F.year('issue_d')).withColumn('month', F.month('issue_d'))
+            out = out.replace('lendingclub','kaggle_cc')
+        else:
+            raise typer.BadParameter("Unsupported source for Spark ETL")
+        df = df.dropna(subset=["issue_d"])  # type: ignore[arg-type]
+        df.write.mode("overwrite").partitionBy("year", "month").parquet(out)
         print(f"Wrote Spark ETL to {out}")
     finally:
         spark.stop()
@@ -57,4 +69,3 @@ def main(
 
 if __name__ == "__main__":
     app()
-
