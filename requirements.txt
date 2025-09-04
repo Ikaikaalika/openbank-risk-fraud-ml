@@ -23,3 +23,6 @@ pytest
 mlflow
 great_expectations
 shap
+requests
+tenacity
+holidays
