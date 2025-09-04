@@ -15,16 +15,27 @@ def main(
     features_root: str = typer.Option("data/features", help="Features root"),
     models_dir: str = typer.Option("models", help="Model output directory"),
     calibrate: bool = typer.Option(False, help="Apply isotonic calibration on validation split"),
+    register: bool = typer.Option(False, help="Attempt to register model in MLflow Model Registry"),
 ):
     features_path = Path(features_root) / ("credit/risk_features.parquet" if domain == "credit" else "fraud/fraud_features.parquet")
     models_out = Path(models_dir)
     models_out.mkdir(parents=True, exist_ok=True)
     if domain == "credit":
         metrics = train_credit_risk(features_path, models_out, calibrate=calibrate)
+        model_name = "credit_risk"
+        export_file = "credit_risk_xgb_isotonic.joblib" if calibrate else "credit_risk_xgb.joblib"
     elif domain == "fraud":
         metrics = train_fraud(features_path, models_out, calibrate=calibrate)
+        model_name = "fraud"
+        export_file = "fraud_xgb_isotonic.joblib" if calibrate else "fraud_xgb.joblib"
     else:
         raise typer.BadParameter("domain must be 'credit' or 'fraud'")
+    if register:
+        from src.mlflow_utils import set_local_tracking, register_model
+        set_local_tracking()
+        uri = register_model(models_out / export_file, model_name=model_name, await_registration=False)
+        if uri:
+            typer.echo(f"Registered model at {uri}")
     typer.echo(f"Trained {domain} model. Metrics: {metrics}")
 
 

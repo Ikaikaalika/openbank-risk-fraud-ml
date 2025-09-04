@@ -4,9 +4,9 @@ from pathlib import Path
 from typing import Optional
 
 import joblib
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request, Response
 from pydantic import BaseModel, Field
-from src.mlflow_utils import set_local_tracking, find_latest_artifact
+from src.mlflow_utils import set_local_tracking, find_latest_artifact, load_model_from_uri, env_model_uri
 
 MODELS_DIR = Path("models")
 
@@ -38,6 +38,15 @@ class FraudOutput(BaseModel):
 
 
 def load_model(name: str) -> Optional[object]:
+    # 0) MLflow model URI from env (prefer explicit URIs)
+    if name.startswith("credit"):
+        uri = env_model_uri("MLFLOW_MODEL_URI_CREDIT")
+    else:
+        uri = env_model_uri("MLFLOW_MODEL_URI_FRAUD")
+    if uri:
+        m = load_model_from_uri(uri)
+        if m is not None:
+            return m
     # 1) Load from local models dir
     local = MODELS_DIR / name
     if local.exists():
@@ -65,7 +74,11 @@ def score_credit(inp: CreditInput):
         # heuristic fallback
         pd_default = float(min(0.99, max(0.01, 0.02 + 0.02 * int_rate_pct + 0.005 * (inp.dti / 10.0))))
     else:
-        pd_default = float(model.predict_proba(X)[0, 1])
+        if hasattr(model, "predict_proba"):
+            pd_default = float(model.predict_proba(X)[0, 1])
+        else:
+            # pyfunc model: predict returns array of probs
+            pd_default = float(model.predict(X)[0])
     reasons = ["int_rate", "dti"]
     return CreditOutput(pd_default=pd_default, reason_codes=reasons)
 
@@ -78,6 +91,29 @@ def score_fraud(inp: FraudInput):
     if model is None:
         fraud_prob = float(min(0.99, max(0.01, 0.01 + 0.001 * max(inp.amount - 500, 0))))
     else:
-        fraud_prob = float(model.predict_proba(X)[0, 1])
+        if hasattr(model, "predict_proba"):
+            fraud_prob = float(model.predict_proba(X)[0, 1])
+        else:
+            fraud_prob = float(model.predict(X)[0])
     action = "review" if fraud_prob >= 0.5 else "allow"
     return FraudOutput(fraud_prob=fraud_prob, action=action, explanations=["amount"])
+from prometheus_client import Counter, Histogram, generate_latest, CONTENT_TYPE_LATEST
+
+REQ_COUNT = Counter("api_requests_total", "Total API requests", ["route", "method", "status"])
+LATENCY = Histogram("api_request_latency_seconds", "Request latency", ["route", "method"])
+
+
+@app.middleware("http")
+async def metrics_middleware(request: Request, call_next):
+    route = request.url.path
+    method = request.method
+    with LATENCY.labels(route, method).time():
+        response = await call_next(request)
+    REQ_COUNT.labels(route, method, str(response.status_code)).inc()
+    return response
+
+
+@app.get("/metrics")
+def metrics():
+    data = generate_latest()
+    return Response(content=data, media_type=CONTENT_TYPE_LATEST)

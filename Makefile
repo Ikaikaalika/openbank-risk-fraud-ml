@@ -62,3 +62,9 @@ monitor:
 validate:
 	$(PY) -m src.jobs.validate_data --suite lendingclub_clean --data-glob "data/interim/lendingclub/**/*.parquet"
 	$(PY) -m src.jobs.validate_data --suite kaggle_cc_clean --data-glob "data/interim/kaggle_cc/**/*.parquet"
+
+batch-score-credit:
+	$(PY) -m src.jobs.batch_score --domain credit --input-path data/features/credit/risk_features.parquet --output-path reports/predictions/credit_scores.parquet
+
+batch-score-fraud:
+	$(PY) -m src.jobs.batch_score --domain fraud --input-path data/features/fraud/fraud_features.parquet --output-path reports/predictions/fraud_scores.parquet
