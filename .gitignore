@@ -7,4 +7,4 @@ mlruns/
 *.pyc
 *.pyo
 *.DS_Store
-
+logs/

@@ -27,9 +27,25 @@ with tab_overview:
     st.subheader('Ops Agent')
     st.caption('Wire up an agent to orchestrate your pipelines. Requires `make agent-serve` running on :8090.')
     import requests as _rq
+    # Presets and session state
+    if 'agent_goal' not in st.session_state:
+        st.session_state['agent_goal'] = ''
+    pc1, pc2 = st.columns(2)
+    with pc1:
+        st.markdown('Presets')
+        if st.button('End-to-end Credit (Spark + Calibrate + Evaluate)'):
+            st.session_state['agent_goal'] = 'download lendingclub, spark etl, build features, train credit with calibration, evaluate reports'
+        if st.button('End-to-end Fraud (Spark + Evaluate)'):
+            st.session_state['agent_goal'] = 'download kaggle cc, spark etl, build features, train fraud, evaluate reports'
+    with pc2:
+        st.markdown('More Presets')
+        if st.button('Nightly Monitoring (Both)'):
+            st.session_state['agent_goal'] = 'run monitoring for both domains'
+        if st.button('Batch Score (Credit)'):
+            st.session_state['agent_goal'] = 'batch score credit'
     col1, col2, col3 = st.columns([3,1,1])
     with col1:
-        goal = st.text_area('Goal', placeholder='e.g., Download lendingclub, spark etl, build features, train credit with calibration, evaluate reports')
+        goal = st.text_area('Goal', value=st.session_state.get('agent_goal',''), placeholder='e.g., Download lendingclub, spark etl, build features, train credit with calibration, evaluate reports')
     with col2:
         dry = st.checkbox('Dry run', value=True)
         use_llm = st.checkbox('Use LLM (Ollama)', value=True)
@@ -46,6 +62,38 @@ with tab_overview:
                     st.json(data)
             except Exception as e:
                 st.error(f"Failed to contact agent server: {e}")
+    st.subheader('Agent Logs')
+    lc1, lc2 = st.columns([1,2])
+    with lc1:
+        max_lines = st.number_input('Lines', min_value=10, max_value=1000, value=100, step=10)
+        refresh = st.button('Refresh Logs')
+    with lc2:
+        log_path = Path('logs/agent.log')
+        if log_path.exists():
+            try:
+                lines = log_path.read_text(errors='ignore').strip().splitlines()[-int(max_lines):]
+                entries = []
+                for ln in lines:
+                    try:
+                        obj = json.loads(ln)
+                        entries.append({
+                            'ts': obj.get('ts'),
+                            'goal': obj.get('goal'),
+                            'dry_run': obj.get('dry_run'),
+                            'use_llm': obj.get('use_llm'),
+                            'steps': ', '.join([s.get('action') for s in obj.get('steps', [])]),
+                            'ok': all(s.get('ok', False) for s in obj.get('steps', [])) if obj.get('steps') else None,
+                        })
+                    except Exception:
+                        continue
+                if entries:
+                    st.dataframe(pd.DataFrame(entries))
+                else:
+                    st.info('No parsable log entries found.')
+            except Exception as e:
+                st.error(f'Failed to read logs: {e}')
+        else:
+            st.info('No logs yet. Execute a plan first.')
     # MLflow recent runs for credit and fraud
     try:
         mlflow.set_tracking_uri(Path('mlruns').absolute().as_uri())
