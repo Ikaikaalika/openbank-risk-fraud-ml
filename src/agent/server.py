@@ -15,6 +15,8 @@ app = FastAPI(title="Varo Ops Agent")
 class ExecuteRequest(BaseModel):
     goal: str
     dry_run: bool = True
+    use_llm: bool = False
+    model: str | None = None
 
 
 class StepResult(BaseModel):
@@ -32,7 +34,7 @@ class ExecuteResponse(BaseModel):
 
 @app.post("/agent/execute", response_model=ExecuteResponse)
 def agent_execute(req: ExecuteRequest):
-    steps = make_plan(req.goal)
+    steps = make_plan(req.goal, use_llm=req.use_llm, model=req.model)
     steps = execute(steps, dry_run=req.dry_run)
     out_steps: List[StepResult] = []
     for s in steps:
@@ -40,4 +42,3 @@ def agent_execute(req: ExecuteRequest):
             StepResult(action=s.action, params=s.params, ok=bool(s.result and s.result.ok), message=(s.result.message if s.result else "no result"))
         )
     return ExecuteResponse(goal=req.goal, dry_run=req.dry_run, steps=out_steps)
-

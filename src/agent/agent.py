@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from typing import List
 
 from src.agent import tools
+from src.agent.llm import plan_with_ollama
 
 
 @dataclass
@@ -13,7 +14,11 @@ class Step:
     result: tools.ToolResult | None = None
 
 
-def plan(goal: str) -> List[Step]:
+def plan(goal: str, use_llm: bool = False, model: str | None = None) -> List[Step]:
+    if use_llm:
+        steps_llm = plan_with_ollama(goal, model=model)
+        if steps_llm:
+            return [Step(action=s["action"], params=s.get("params", {})) for s in steps_llm]
     g = goal.lower()
     steps: List[Step] = []
     # Simple keyword routing; extend as needed.
@@ -88,4 +93,3 @@ def execute(steps: List[Step], dry_run: bool = True) -> List[Step]:
         else:
             s.result = tools.ToolResult(False, f"Unknown action: {s.action}")
     return steps
-

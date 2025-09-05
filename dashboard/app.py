@@ -23,6 +23,29 @@ MODELS_DIR = Path('models')
 with tab_overview:
     st.markdown('- Use the tabs to explore model health and monitoring reports.')
     st.markdown('- Files: features under `data/features/`, models under `models/`, reports under `reports/`.')
+    st.divider()
+    st.subheader('Ops Agent')
+    st.caption('Wire up an agent to orchestrate your pipelines. Requires `make agent-serve` running on :8090.')
+    import requests as _rq
+    col1, col2, col3 = st.columns([3,1,1])
+    with col1:
+        goal = st.text_area('Goal', placeholder='e.g., Download lendingclub, spark etl, build features, train credit with calibration, evaluate reports')
+    with col2:
+        dry = st.checkbox('Dry run', value=True)
+        use_llm = st.checkbox('Use LLM (Ollama)', value=True)
+    with col3:
+        model = st.text_input('Model', value='llama3.1')
+        if st.button('Execute Plan', type='primary'):
+            try:
+                resp = _rq.post('http://localhost:8090/agent/execute', json={"goal": goal, "dry_run": dry, "use_llm": use_llm, "model": model}, timeout=60)
+                if resp.status_code != 200:
+                    st.error(f"Agent error: {resp.status_code} {resp.text}")
+                else:
+                    data = resp.json()
+                    st.write('Plan Execution:')
+                    st.json(data)
+            except Exception as e:
+                st.error(f"Failed to contact agent server: {e}")
     # MLflow recent runs for credit and fraud
     try:
         mlflow.set_tracking_uri(Path('mlruns').absolute().as_uri())
