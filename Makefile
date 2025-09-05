@@ -52,6 +52,9 @@ evaluate:
 serve:
 	uvicorn src.serving.app:app --reload --host 0.0.0.0 --port 8080
 
+agent-serve:
+	uvicorn src.agent.server:app --reload --host 0.0.0.0 --port 8090
+
 docker-api:
 	docker build -f infra/docker/Dockerfile.api -t varo-risk-api:latest .
 
